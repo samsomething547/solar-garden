@@ -55,4 +55,236 @@
     function createFlowers(count = 24) {
       flowers.length = 0;
       for (let i = 0; i < count; i++) {
-        const x = (i + 0.
+        const x = (i + 0.5) / count * width + (Math.random() - 0.5) * 40;
+        const baseY = height * 0.65 + (Math.random() - 0.5) * 40;
+        const heightStem = height * (0.18 + Math.random() * 0.12);
+        const radius = 10 + Math.random() * 14;
+        flowers.push({
+          x,
+          baseY,
+          stemHeight: heightStem,
+          radius,
+          pulseOffset: Math.random() * Math.PI * 2
+        });
+      }
+    }
+
+    createFlowers();
+
+    function drawBackground() {
+      // Sky gradient
+      const sky = ctx.createLinearGradient(0, 0, 0, height);
+      sky.addColorStop(0, "#111827");
+      sky.addColorStop(0.5, "#0b1020");
+      sky.addColorStop(1, "#020617");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, width, height);
+
+      // Ground
+      const groundGrad = ctx.createLinearGradient(0, height * 0.55, 0, height);
+      groundGrad.addColorStop(0, "#020814");
+      groundGrad.addColorStop(1, "#020510");
+      ctx.fillStyle = groundGrad;
+      ctx.fillRect(0, height * 0.55, width, height * 0.45);
+
+      // Vertical beam of light (soft)
+      const beamWidth = width * 0.4;
+      const beamX = width * 0.5 - beamWidth / 2;
+      const beamGrad = ctx.createLinearGradient(
+        beamX, 0,
+        beamX + beamWidth, 0
+      );
+      beamGrad.addColorStop(0, "rgba(255, 255, 255, 0)");
+      beamGrad.addColorStop(0.5, "rgba(255, 244, 214, 0.33)");
+      beamGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.fillStyle = beamGrad;
+      ctx.fillRect(beamX, 0, beamWidth, height);
+    }
+
+    function drawFlowers(time) {
+      const t = time * 0.001; // seconds
+
+      // Stems
+      ctx.lineWidth = 2;
+      for (const f of flowers) {
+        const topY = f.baseY - f.stemHeight;
+        ctx.strokeStyle = "rgba(243, 232, 255, 0.6)";
+        ctx.beginPath();
+        ctx.moveTo(f.x, f.baseY);
+        ctx.lineTo(f.x, topY);
+        ctx.stroke();
+      }
+
+      // Heads
+      for (const f of flowers) {
+        const topY = f.baseY - f.stemHeight;
+        const pulse = 0.4 + 0.3 * Math.sin(t * 1.4 + f.pulseOffset);
+        const r = f.radius * (0.9 + 0.15 * pulse);
+
+        // Glow halo
+        const halo = ctx.createRadialGradient(
+          f.x, topY, 0,
+          f.x, topY, r * 3
+        );
+        halo.addColorStop(0, "rgba(255, 247, 237, 0.8)");
+        halo.addColorStop(0.6, "rgba(251, 146, 60, 0.2)");
+        halo.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(f.x, topY, r * 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pearl orb
+        const orb = ctx.createRadialGradient(
+          f.x - r * 0.4, topY - r * 0.4, r * 0.2,
+          f.x, topY, r
+        );
+        orb.addColorStop(0, "#fef3c7");
+        orb.addColorStop(0.4, "#fde68a");
+        orb.addColorStop(1, "#f97316");
+        ctx.fillStyle = orb;
+        ctx.beginPath();
+        ctx.arc(f.x, topY, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Teal core
+        const coreR = r * 0.35;
+        const core = ctx.createRadialGradient(
+          f.x, topY - coreR * 0.5, coreR * 0.1,
+          f.x, topY, coreR
+        );
+        core.addColorStop(0, "#e0f2fe");
+        core.addColorStop(1, "#0ea5e9");
+        ctx.fillStyle = core;
+        ctx.beginPath();
+        ctx.arc(f.x, topY, coreR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ----- GLITTER PARTICLES -----
+
+    const particles = [];
+    const MAX_PARTICLES = 1800;
+
+    function spawnGlitter(x, y) {
+      const count = 80;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 40 + Math.random() * 60;
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 20,
+          life: 1.0,           // 1 = full, 0 = dead
+          size: 1.5 + Math.random() * 2.2,
+          hueShift: Math.random() * 40 - 20
+        });
+      }
+
+      // Limit to max
+      if (particles.length > MAX_PARTICLES) {
+        particles.splice(0, particles.length - MAX_PARTICLES);
+      }
+    }
+
+    function updateParticles(dt) {
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+
+        // Simple physics
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 20 * dt; // gravity
+        p.vx *= 0.98;
+        p.vy *= 0.98;
+
+        p.life -= dt * 0.9;
+        if (p.life <= 0 || p.y > height + 40) {
+          particles.splice(i, 1);
+        }
+      }
+    }
+
+    function drawParticles() {
+      if (!particles.length) return;
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+
+      for (const p of particles) {
+        const alpha = Math.max(0, p.life);
+        const radius = p.size;
+
+        const grad = ctx.createRadialGradient(
+          p.x, p.y, 0,
+          p.x, p.y, radius * 3
+        );
+        // warm + hint of teal
+        grad.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+        grad.addColorStop(0.4, `rgba(253, 224, 171, ${alpha * 0.8})`);
+        grad.addColorStop(1, `rgba(56, 189, 248, 0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius * 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // ----- POINTER / TOUCH HANDLERS -----
+
+    function getPointerPos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX, clientY;
+
+      if (evt.touches && evt.touches[0]) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+      } else {
+        clientX = evt.clientX;
+        clientY = evt.clientY;
+      }
+
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function handleTap(evt) {
+      evt.preventDefault();
+      const { x, y } = getPointerPos(evt);
+      spawnGlitter(x, y);
+    }
+
+    // Pointer events for most browsers
+    canvas.addEventListener("pointerdown", handleTap);
+
+    // Fallback for older iOS
+    canvas.addEventListener("touchstart", handleTap, { passive: false });
+    canvas.addEventListener("mousedown", handleTap);
+
+    // ----- MAIN LOOP -----
+
+    let lastTime = performance.now();
+
+    function loop(now) {
+      const dt = Math.min(0.033, (now - lastTime) / 1000); // clamp to avoid jumps
+      lastTime = now;
+
+      drawBackground();
+      drawFlowers(now);
+      updateParticles(dt);
+      drawParticles();
+
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
